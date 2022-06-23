@@ -1,0 +1,15 @@
+dist
+node_modules
+.eslintcache
+logs
+static
+
+src/secret.ts
+.env
+
+
+# lock文件
+yarn.lock
+package-lock.json
+
+prisma/migrations/*

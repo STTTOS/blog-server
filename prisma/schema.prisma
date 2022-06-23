@@ -1,0 +1,86 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 用户
+model User {
+  id            Int       @id @default(autoincrement())
+  // 昵称
+  name          String
+  // 头像
+  avatar        String?
+  // 自定义背景
+  backgroundUrl String?
+  // 个性签名
+  desc          String?
+  // 邮箱
+  email         String?   @unique
+  // git地址
+  github        String?
+  createdAt     DateTime         @default(now())
+
+
+  articles      Article[]
+
+  TagsOnArticles TagsOnArticles[]
+}
+
+// 文章
+model Article {
+  id            Int              @id @default(autoincrement())
+  // 标题
+  title         String
+  // 摘要
+  desc          String
+  // 阅读量
+  viewCount     Int              @default(0)
+  // 封面图
+  backgroundUrl String?
+  // 内容
+  content       String
+  // 字数
+  length        Int
+  // 估计阅读时间
+  readingTime   Int              @default(0)
+  // 关联用户表
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  // chore: 设置为可选 -> 删除用户的时候, 会把文章关联的authorId字段置空
+  authorId      Int?
+  author        User?            @relation(fields: [authorId], references: [id])
+  tags          TagsOnArticles[]
+
+  @@unique([authorId, title])
+}
+
+// 标签
+model Tag {
+  id        Int              @id @default(autoincrement())
+  // tag名称
+  name      String           @unique
+  // 标签的阅读量
+  viewCount Int              @default(0)
+  articles  TagsOnArticles[]
+}
+
+model TagsOnArticles {
+  id Int @id @default(autoincrement())
+
+  // 作者->文章->tag对应的浏览量
+  visiteCount Int @default(0)
+
+  // chore: 设置为级联删除, 当删除文章时, 会删除所有关联数据
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  articleId Int
+  // chore: onDelete默认为Restrict -> 删除tag时, 若此表有关系, 则禁止删除
+  tag       Tag     @relation(fields: [tagId], references: [id])
+  tagId     Int
+
+  author   User? @relation(fields: [authorId], references: [id])
+  authorId Int?
+}
