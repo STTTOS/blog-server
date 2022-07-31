@@ -1,12 +1,9 @@
-import type {
-  GetUserReq,
-  UpdateUserReq,
-  GetUserByPaginationReq
-} from './interface'
+import type { UpdateUserReq, GetUserByPaginationReq } from './interface'
 import type { Identity } from '../interface'
 
 import moment from 'moment'
 import { Prisma } from '@prisma/client'
+import { compose, map, reduce, prop } from 'ramda'
 
 import router from '../instance'
 import { user } from '../../models'
@@ -85,27 +82,40 @@ router.post(userApi('/list'), async (ctx) => {
   const total = await user.count({ where })
   const list = await user.findMany({
     where,
+    include: {
+      articles: {
+        select: {
+          viewCount: true
+        }
+      }
+    },
     take: pageSize,
     skip: (current - 1) * pageSize
   })
-  const newList = list.map(({ createdAt, ...rest }) => ({
+  const newList = list.map(({ createdAt, articles, ...rest }) => ({
     ...rest,
-    createdAt: moment(createdAt).format(timeFormat)
+    createdAt: moment(createdAt).format(timeFormat),
+    viewCount: articles.reduce((acc, { viewCount }) => acc + viewCount, 0)
   }))
   response.success(ctx, withList(newList, total))
 })
 
 router.post(userApi('/recommend'), async (ctx) => {
-  const { name }: GetUserReq = ctx.request.body
-
   const list = await user.findMany({
-    where: {
-      name: {
-        contains: name
+    include: {
+      articles: {
+        select: {
+          viewCount: true
+        }
       }
     }
   })
-  response.success(ctx, withList(list, list.length))
+  const newList = list.map(({ articles, ...rest }) => ({
+    totalViewCount: sumViewCounts(articles),
+    ...rest
+  }))
+
+  response.success(ctx, withList(newList, newList.length))
 })
 
 router.post(userApi('/detail'), async (ctx) => {
@@ -120,4 +130,40 @@ router.post(userApi('/detail'), async (ctx) => {
   }
 
   response.success(ctx, null, '用户不存在')
+})
+
+router.post(userApi('/all'), async (ctx) => {
+  const list = await user.findMany()
+  response.success(ctx, withList(list, list.length))
+})
+
+export const sum = (a: number, b: number) => a + b
+const sumViewCounts = compose(reduce(sum, 0), map(prop('viewCount')))
+
+router.post(userApi('/card'), async (ctx) => {
+  const { id } = ctx.request.body
+
+  if (!id) throw new Error('参数不正确')
+
+  const data = await user.findUnique({
+    where: {
+      id
+    },
+    include: {
+      articles: {
+        select: {
+          viewCount: true
+        }
+      }
+    }
+  })
+  if (!data) {
+    response.success(ctx, null)
+    return
+  }
+  const { articles, ...rest } = data
+  response.success(ctx, {
+    totalViewCount: sumViewCounts(articles),
+    ...rest
+  })
 })

@@ -1,29 +1,41 @@
-import { Prisma } from '@prisma/client'
 import type { Identity } from '../interface'
 import type { GetArticleByPaginationReq } from './interface'
 
+import moment from 'moment'
+import { prop } from 'ramda'
+import { Prisma } from '@prisma/client'
+
 import router from '../instance'
-import { article } from '../../models'
-import { apiPrefix } from '../../config'
+import prisma from '../../models'
+import { article, tag } from '../../models'
 import response from '../../utils/response'
 import { withList } from '../../utils/response'
 import combinePath from '../../utils/combinePath'
+import {
+  apiPrefix,
+  timeFormat,
+  timeFormatWithoutSeconds,
+  wordsToMinuteBaseNumber
+} from '../../config'
 
 const articleApi = combinePath(apiPrefix)('/article')
 
 router.post(articleApi('/add'), async (ctx) => {
-  const { tagIds, content, ...data } = ctx.request.body
+  const { tagIds, content, authorId, ...data } = ctx.request.body
 
-  const length = content.length
+  const length = content.replace(/[\s#*-<>~]/g, '').length
+  const readingTime = Math.ceil(length / wordsToMinuteBaseNumber)
 
   await article.create({
     data: {
       ...data,
+      authorId,
       content,
       length,
+      readingTime,
       tags: {
         createMany: {
-          data: tagIds.map((tagId: number) => ({ tagId }))
+          data: tagIds.map((tagId: number) => ({ tagId, authorId }))
         }
       }
     }
@@ -49,12 +61,18 @@ router.post(articleApi('/update'), async (ctx) => {
     id,
     tagIds,
     content,
+    authorId,
+    createdAt,
+    updatedAt,
     ...data
   }: Partial<Record<string, any> & Identity> = ctx.request.body
 
   if (!id) throw new Error('参数不正确')
 
-  const length = content.length
+  // 去除掉markdown标记
+  const length = content.replace(/[\s#*-<>~]/g, '').length
+  const readingTime = Math.ceil(length / wordsToMinuteBaseNumber)
+
   await article.update({
     where: {
       id
@@ -63,12 +81,13 @@ router.post(articleApi('/update'), async (ctx) => {
       ...data,
       content,
       length,
+      readingTime,
       tags: {
         deleteMany: {
           articleId: id
         },
         createMany: {
-          data: tagIds.map((tagId: number) => ({ tagId }))
+          data: tagIds.map((tagId: number) => ({ tagId, authorId }))
         }
       }
     }
@@ -93,15 +112,20 @@ router.post(articleApi('/list'), async (ctx) => {
   const where: Prisma.ArticleWhereInput = {
     title: {
       contains: title
-    },
-    tags: {
+    }
+  }
+
+  if (tagIds && tagIds.length > 0) {
+    where.tags = {
       some: {
         tagId: {
           in: tagIds
         }
       }
-    },
-    authorId: {
+    }
+  }
+  if (authorIds && authorIds.length > 0) {
+    where.authorId = {
       in: authorIds
     }
   }
@@ -145,10 +169,149 @@ router.post(articleApi('/list'), async (ctx) => {
     orderBy
   })
 
-  const newList = list.map(({ author, tags, ...rest }) => ({
+  const newList = list.map(({ author, tags, createdAt, ...rest }) => ({
     ...rest,
     authorName: author?.name,
+    createdAt: moment(createdAt).format(timeFormat),
     tags: tags.map(({ tagId: id, tag: { name } }) => ({ id, name }))
   }))
   response.success(ctx, withList(newList, total))
 })
+
+router.post(articleApi('/detail'), async (ctx) => {
+  const { id }: Identity = ctx.request.body
+
+  if (!id) throw new Error('参数不正确')
+
+  const data = await article.findUnique({
+    include: {
+      tags: {
+        include: {
+          tag: true
+        }
+      }
+    },
+    where: { id }
+  })
+  if (!data) {
+    response.success(ctx, null)
+    return
+  }
+  const { tags, createdAt, ...rest } = data
+  response.success(ctx, {
+    tagIds: tags.map(({ tag: { id } }) => id),
+    tags: tags.map(({ tag: { id, name } }) => ({ id, name })),
+    createdAt: moment(createdAt).format(timeFormatWithoutSeconds),
+    ...rest
+  })
+})
+
+router.post(articleApi('/similar'), async (ctx) => {
+  const { id }: Identity = ctx.request.body
+
+  if (!id) throw new Error('参数不正确')
+
+  const tagIds = await getTagIdsByArticleId(id)
+  const list = await article.findMany({
+    where: {
+      id: {
+        not: id
+      },
+      tags: {
+        some: {
+          tagId: {
+            in: tagIds
+          }
+        }
+      }
+    },
+    orderBy: {
+      viewCount: 'desc'
+    },
+    take: 5
+  })
+  response.success(ctx, withList(list, list.length))
+})
+
+// 埋点统计
+router.post(articleApi('/count'), async (ctx) => {
+  const { id }: Identity = ctx.request.body
+
+  if (!id) throw new Error('参数不正确')
+
+  const tagIds = await getTagIdsByArticleId(id)
+
+  const updateArticleViewCounts = article.update({
+    where: {
+      id
+    },
+    data: {
+      viewCount: {
+        increment: 1
+      }
+    }
+  })
+  const updateTagViewCount = tag.updateMany({
+    where: {
+      id: {
+        in: tagIds
+      }
+    },
+    data: {
+      viewCount: {
+        increment: 1
+      }
+    }
+  })
+
+  await prisma.$transaction([updateArticleViewCounts, updateTagViewCount])
+  response.success(ctx, null)
+})
+
+router.post(articleApi('/clientList'), async (ctx) => {
+  const { authorId, tagId } = ctx.request.body
+
+  const where: Prisma.ArticleWhereInput = {}
+
+  if (authorId) {
+    where.authorId = authorId
+  }
+  if (tagId) {
+    where.tags = {
+      some: {
+        tagId
+      }
+    }
+  }
+  const list = await article.findMany({
+    include: {
+      author: {
+        select: {
+          avatar: true,
+          name: true
+        }
+      }
+    },
+    where
+  })
+  const newList = list.map(({ createdAt, author, ...rest }) => ({
+    ...rest,
+    avatar: author?.avatar,
+    authorName: author?.name,
+    createdAt: moment(createdAt).format(timeFormat)
+  }))
+  response.success(ctx, withList(newList, newList.length))
+})
+async function getTagIdsByArticleId(id: number) {
+  const data = await article.findUnique({
+    where: {
+      id
+    },
+    include: {
+      tags: true
+    }
+  })
+  if (!data) return []
+
+  return data.tags.map(prop('tagId'))
+}

@@ -3,10 +3,10 @@ node_modules
 .eslintcache
 logs
 static
-
-src/secret.ts
+public
+source
 .env
-
+system.json
 
 # lock文件
 yarn.lock

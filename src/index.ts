@@ -4,15 +4,18 @@ import Koa from 'koa'
 import { join } from 'path'
 import cors from '@koa/cors'
 import serve from 'koa-static'
+import mount from 'koa-mount'
 import koaBody from 'koa-body'
+import { historyApiFallback } from 'koa2-connect-history-api-fallback'
 
 import router from './router'
-import { port } from './config'
 import { logger } from './logger'
 import response from './utils/response'
+import { port, authCode, apiNeededToAuth } from './config'
 
 const app = new Koa()
 
+//统一错误处理
 app.use(async (ctx, next) => {
   try {
     await next()
@@ -24,8 +27,15 @@ app.use(async (ctx, next) => {
   }
 })
 
-// 访问静态文件
-app.use(serve('.'))
+// 配合history模式
+// 放在静态资源服务中间件前面加载
+// 404  重定向到 /public/index.html
+app.use(historyApiFallback({ index: '/index.html' }))
+
+// 访问 网站静态文件
+app.use(serve(join(__dirname, '../public')))
+// 注册静态资源前缀 /static
+app.use(mount('/static', serve(join(__dirname, '../static'))))
 
 // 解析请求体
 app.use(
@@ -40,6 +50,18 @@ app.use(
     }
   })
 )
+
+// 统一鉴权
+app.use(async (ctx, next) => {
+  const { code } = ctx.request.header
+  const url = ctx.request.url
+
+  if (code !== authCode && apiNeededToAuth.includes(url)) {
+    response.success(ctx, null, '没有权限', 403)
+    return
+  }
+  await next()
+})
 
 // 请求跨域
 app.use(cors())

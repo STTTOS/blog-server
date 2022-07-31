@@ -9,7 +9,7 @@ generator client {
 
 // 用户
 model User {
-  id            Int       @id @default(autoincrement())
+  id            Int      @id @default(autoincrement())
   // 昵称
   name          String
   // 头像
@@ -19,13 +19,12 @@ model User {
   // 个性签名
   desc          String?
   // 邮箱
-  email         String?   @unique
+  email         String?  @unique
   // git地址
   github        String?
-  createdAt     DateTime         @default(now())
+  createdAt     DateTime @default(now())
 
-
-  articles      Article[]
+  articles Article[]
 
   TagsOnArticles TagsOnArticles[]
 }
@@ -36,15 +35,16 @@ model Article {
   // 标题
   title         String
   // 摘要
-  desc          String
+  desc          String?
   // 阅读量
   viewCount     Int              @default(0)
   // 封面图
   backgroundUrl String?
   // 内容
-  content       String
+  content       String           @db.LongText
   // 字数
   length        Int
+  isOrigin      Boolean          @default(true)
   // 估计阅读时间
   readingTime   Int              @default(0)
   // 关联用户表
@@ -63,17 +63,14 @@ model Tag {
   id        Int              @id @default(autoincrement())
   // tag名称
   name      String           @unique
+  // 立体卡片 背后图标
+  icon      String?
   // 标签的阅读量
   viewCount Int              @default(0)
   articles  TagsOnArticles[]
 }
 
 model TagsOnArticles {
-  id Int @id @default(autoincrement())
-
-  // 作者->文章->tag对应的浏览量
-  visiteCount Int @default(0)
-
   // chore: 设置为级联删除, 当删除文章时, 会删除所有关联数据
   article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
   articleId Int
@@ -83,4 +80,6 @@ model TagsOnArticles {
 
   author   User? @relation(fields: [authorId], references: [id])
   authorId Int?
+
+  @@id([tagId, articleId])
 }
