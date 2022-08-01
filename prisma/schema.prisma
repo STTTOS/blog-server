@@ -83,3 +83,11 @@ model TagsOnArticles {
 
   @@id([tagId, articleId])
 }
+
+
+model Tools {
+  id        Int    @id @default(autoincrement())
+  title     String @unique
+  scriptUrl String
+  cssHref   String
+}

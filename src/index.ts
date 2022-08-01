@@ -37,6 +37,9 @@ app.use(serve(join(__dirname, '../public')))
 // 注册静态资源前缀 /static
 app.use(mount('/static', serve(join(__dirname, '../static'))))
 
+// 请求跨域
+app.use(cors())
+
 // 解析请求体
 app.use(
   koaBody({
@@ -62,9 +65,6 @@ app.use(async (ctx, next) => {
   }
   await next()
 })
-
-// 请求跨域
-app.use(cors())
 
 //路由中间件
 app.use(router.routes())
