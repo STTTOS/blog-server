@@ -140,9 +140,10 @@ router.post(articleApi('/list'), async (ctx) => {
   }
 
   // 排序方案
-  const orderBy = (() => {
-    if (filterType === 'hotest') return { id: 'desc' } as const
-    else if (filterType === 'newest') return { viewCount: 'desc' } as const
+  const orderBy: Prisma.ArticleOrderByWithRelationInput = (() => {
+    if (filterType === 'hotest') return { viewCount: 'desc' }
+
+    return { id: 'desc' }
   })()
 
   const total = await article.count({ where })
