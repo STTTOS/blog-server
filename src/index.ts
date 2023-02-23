@@ -6,13 +6,14 @@ import cors from '@koa/cors'
 import mount from 'koa-mount'
 import serve from 'koa-static'
 import koaBody from 'koa-body'
+import { toLower } from 'ramda'
 import { historyApiFallback } from 'koa2-connect-history-api-fallback'
 
 import router from './router'
 import { logger } from './logger'
 import response from './utils/response'
-import { port, apiNeededToAuth, cacheTime as maxAge } from './config'
 import { parseUserInfoByCookie } from './router/user'
+import { port, apiNeededToAuth, cacheTime as maxAge } from './config'
 
 const app = new Koa()
 
@@ -54,7 +55,7 @@ app.use(async (ctx, next) => {
   } = ctx.request
   const user = await parseUserInfoByCookie(cookie)
 
-  if (apiNeededToAuth.includes(url) && user?.role !== 'admin') {
+  if (apiNeededToAuth.includes(toLower(url)) && user?.role !== 'admin') {
     response.success(ctx, null, '没有权限', 403)
     return
   }

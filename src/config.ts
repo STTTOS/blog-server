@@ -25,5 +25,9 @@ export const apiNeededToAuth = [
   '/api/tag/update',
   '/api/tag/delete',
 
+  '/api/ebook/add',
+  '/api/ebook/update',
+  '/api/ebook/delete',
+
   '/api/common/upload'
 ]

@@ -4,7 +4,7 @@ import type { Identity, PrismaError } from '../interface'
 import moment from 'moment'
 import Cookie from 'cookie'
 import { Prisma } from '@prisma/client'
-import { compose, map, reduce, prop } from 'ramda'
+import { compose, map, reduce, prop, propOr } from 'ramda'
 
 import router from '../instance'
 import { user } from '../../models'
@@ -208,7 +208,7 @@ router.post(userApi('/all'), async (ctx) => {
 })
 
 export const sum = (a: number, b: number) => a + b
-const sumViewCounts = compose(reduce(sum, 0), map(prop('viewCount')))
+const sumViewCounts = compose(reduce(sum, 0), map(prop('viewCount') as (...args: unknown[]) => number))
 
 router.post(userApi('/card'), async (ctx) => {
   const { id } = ctx.request.body
