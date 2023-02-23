@@ -11,7 +11,8 @@ import { historyApiFallback } from 'koa2-connect-history-api-fallback'
 import router from './router'
 import { logger } from './logger'
 import response from './utils/response'
-import { port, authCode, apiNeededToAuth, cacheTime as maxAge } from './config'
+import { port, apiNeededToAuth, cacheTime as maxAge } from './config'
+import { parseUserInfoByCookie } from './router/user'
 
 const app = new Koa()
 
@@ -20,10 +21,10 @@ app.use(async (ctx, next) => {
   try {
     await next()
   } catch (err) {
-    const status = (err as BizError).status || 500
+    const { status = 500, message = '系统异常' } = err as BizError
 
-    logger.error((err as BizError).message)
-    response.error(ctx, status, '系统异常')
+    logger.error(message)
+    response.error(ctx, status, message)
   }
 })
 
@@ -47,10 +48,13 @@ app.use(mount('/static', serve(join(__dirname, '../static'), { maxAge })))
 
 // 统一鉴权
 app.use(async (ctx, next) => {
-  const { code } = ctx.request.header
-  const url = ctx.request.url
+  const {
+    url,
+    header: { cookie }
+  } = ctx.request
+  const user = await parseUserInfoByCookie(cookie)
 
-  if (code !== authCode && apiNeededToAuth.includes(url)) {
+  if (apiNeededToAuth.includes(url) && user?.role !== 'admin') {
     response.success(ctx, null, '没有权限', 403)
     return
   }

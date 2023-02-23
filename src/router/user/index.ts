@@ -1,7 +1,8 @@
 import type { UpdateUserReq, GetUserByPaginationReq } from './interface'
-import type { Identity } from '../interface'
+import type { Identity, PrismaError } from '../interface'
 
 import moment from 'moment'
+import Cookie from 'cookie'
 import { Prisma } from '@prisma/client'
 import { compose, map, reduce, prop } from 'ramda'
 
@@ -11,16 +12,77 @@ import response from '../../utils/response'
 import { withList } from '../../utils/response'
 import combinePath from '../../utils/combinePath'
 import { apiPrefix, timeFormat } from '../../config'
+import { encrypt, decrypt } from '../../utils/cryptor'
 
 const userApi = combinePath(apiPrefix)('/user')
+
+// 登录注册 合并一起
+router.post(userApi('/signin'), async (ctx) => {
+  const { username, password } = ctx.request.body
+
+  if (!username || !password) throw new Error('参数异常')
+
+  const u = await user.findFirst({
+    where: { username }
+  })
+  // 验证登录
+  if (u) {
+    const target = await user.findFirst({ where: { username, password } })
+    if (!target) {
+      response.error(ctx, 403, '用户信息不正确')
+      return
+    }
+
+    const token = encrypt(`${u.id}`)
+    response.success(ctx, { token }, '登录成功')
+    return
+  }
+
+  // 注册
+  const userInfo = await user.create({
+    data: { username, password, name: '用户昵称_' + Math.random() }
+  })
+  const token = encrypt(`${userInfo.id}`)
+  response.success(ctx, { token }, '注册成功')
+})
+
+// 从cookie中查询用户
+export async function parseUserInfoByCookie(input?: string) {
+  if (!input) return null
+
+  const { token = '' } = Cookie.parse(input)
+  const id = decrypt(token)
+
+  if (!id) return null
+
+  return await user.findUnique({ where: { id: Number(id) } })
+}
+
+router.post(userApi('/info'), async (ctx) => {
+  const { cookie = '' } = ctx.request.header
+
+  const user = await parseUserInfoByCookie(cookie)
+  if (!user) {
+    response.error(ctx, 403, '未登录')
+  } else {
+    response.success(ctx, user)
+  }
+})
 
 router.post(userApi('/add'), async (ctx) => {
   const { name, ...data } = ctx.request.body
 
   if (!name) throw new Error('昵称不能为空')
 
-  await user.create({ data: { ...data, name } })
-  response.success(ctx)
+  try {
+    await user.create({ data: { ...data, name } })
+    response.success(ctx)
+  } catch (error) {
+    const { code } = error as PrismaError
+
+    if (code === 'P2002') throw new Error('账户已存在')
+    throw new Error('系统异常')
+  }
 })
 
 router.post(userApi('/delete'), async (ctx) => {
@@ -92,7 +154,7 @@ router.post(userApi('/list'), async (ctx) => {
     take: pageSize,
     skip: (current - 1) * pageSize
   })
-  const newList = list.map(({ createdAt, articles, ...rest }) => ({
+  const newList = list.map(({ password, createdAt, articles, ...rest }) => ({
     ...rest,
     createdAt: moment(createdAt).format(timeFormat),
     viewCount: articles.reduce((acc, { viewCount }) => acc + viewCount, 0)
@@ -123,7 +185,15 @@ router.post(userApi('/detail'), async (ctx) => {
 
   if (!id) throw new Error('参数不正确')
 
-  const result = await user.findUnique({ where: { id: Number(id) } })
+  const result = await user.findUnique({
+    where: { id: Number(id) },
+    select: {
+      desc: true,
+      name: true,
+      role: true,
+      avatar: true
+    }
+  })
   if (result) {
     response.success(ctx, result)
     return

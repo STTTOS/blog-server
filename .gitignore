@@ -11,5 +11,6 @@ system.json
 # lock文件
 yarn.lock
 package-lock.json
+yarn-error.log
 
 prisma/migrations/*

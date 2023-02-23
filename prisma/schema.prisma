@@ -7,11 +7,24 @@ generator client {
   provider = "prisma-client-js"
 }
 
+enum Role {
+  admin
+  user
+}
+
 // 用户
 model User {
   id            Int      @id @default(autoincrement())
+  // 账号
+  username      String  @unique
+  // 密码
+  password      String
+  // 角色
+  role          Role?    @default(user)
+  // 是否是贡献者
+  isContributor Boolean? @default(false)
   // 昵称
-  name          String
+  name          String?
   // 头像
   avatar        String?
   // 自定义背景
@@ -53,6 +66,7 @@ model Article {
   // chore: 设置为可选 -> 删除用户的时候, 会把文章关联的authorId字段置空
   authorId      Int?
   author        User?            @relation(fields: [authorId], references: [id])
+  coAuthorIds String?
   tags          TagsOnArticles[]
 
   @@unique([authorId, title])
@@ -83,7 +97,6 @@ model TagsOnArticles {
 
   @@id([tagId, articleId])
 }
-
 
 model Tools {
   id        Int    @id @default(autoincrement())

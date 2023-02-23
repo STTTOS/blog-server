@@ -3,9 +3,9 @@ import { constants } from 'fs'
 import { readFile, writeFile, access } from 'fs/promises'
 
 import router from '../instance'
+import { apiPrefix } from '../../config'
 import response from '../../utils/response'
 import combinePath from '../../utils/combinePath'
-import { apiPrefix, authCode } from '../../config'
 
 const commonApi = combinePath(apiPrefix)('/common')
 
@@ -19,16 +19,6 @@ router.post(commonApi('/upload'), async (ctx) => {
   const url = files.map(({ newFilename }) => `/static/${newFilename}`).join(',')
 
   response.success(ctx, { url })
-})
-
-router.post(commonApi('/auth'), async (ctx) => {
-  const { code } = ctx.request.body
-
-  if (!code) throw new Error('参数异常')
-
-  response.success(ctx, {
-    isPass: code === authCode
-  })
 })
 
 async function countView(filePath: string, increment = 0) {

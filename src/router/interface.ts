@@ -8,6 +8,10 @@ export interface BizError {
   message?: string
 }
 
+export interface PrismaError {
+  code: string
+}
+
 export interface Identity {
   id?: number
 }

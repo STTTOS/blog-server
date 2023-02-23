@@ -17,18 +17,27 @@ import {
   timeFormatWithoutSeconds,
   wordsToMinuteBaseNumber
 } from '../../config'
+import { parseUserInfoByCookie } from '../user'
 
 const articleApi = combinePath(apiPrefix)('/article')
 
 router.post(articleApi('/add'), async (ctx) => {
-  const { tagIds, content, authorId, ...data } = ctx.request.body
+  const {
+    body: { tagIds, content, coAuthorIds, ...data },
+    header: { cookie }
+  } = ctx.request
+  const user = await parseUserInfoByCookie(cookie)
 
+  if (!user) throw new Error('系统异常')
+
+  const { id: authorId } = user
   const length = content.replace(/[\s#*-<>~]/g, '').length
   const readingTime = Math.ceil(length / wordsToMinuteBaseNumber)
 
   await article.create({
     data: {
       ...data,
+      coAuthorIds: coAuthorIds?.join(','),
       authorId,
       content,
       length,
@@ -58,14 +67,8 @@ router.post(articleApi('/delete'), async (ctx) => {
 
 router.post(articleApi('/update'), async (ctx) => {
   const {
-    id,
-    tagIds,
-    content,
-    authorId,
-    createdAt,
-    updatedAt,
-    ...data
-  }: Partial<Record<string, any> & Identity> = ctx.request.body
+    body: { id, tagIds, content, createdAt, updatedAt, coAuthorIds, ...data }
+  } = ctx.request
 
   if (!id) throw new Error('参数不正确')
 
@@ -73,12 +76,14 @@ router.post(articleApi('/update'), async (ctx) => {
   const length = content.replace(/[\s#*-<>~]/g, '').length
   const readingTime = Math.ceil(length / wordsToMinuteBaseNumber)
 
+  const thisOne = await article.findUnique({ where: { id } })
   await article.update({
     where: {
       id
     },
     data: {
       ...data,
+      coAuthorIds: coAuthorIds?.join(','),
       content,
       length,
       readingTime,
@@ -87,7 +92,10 @@ router.post(articleApi('/update'), async (ctx) => {
           articleId: id
         },
         createMany: {
-          data: tagIds.map((tagId: number) => ({ tagId, authorId }))
+          data: tagIds.map((tagId: number) => ({
+            tagId,
+            authorId: thisOne?.authorId
+          }))
         }
       }
     }

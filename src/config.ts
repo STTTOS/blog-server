@@ -8,9 +8,9 @@ export const timeFormatWithoutSeconds = 'yyyy-MM-DD HH:mm'
 
 export const wordsToMinuteBaseNumber = 500
 
-export const authCode = 'bgs_ycr_2022'
-
 export const cacheTime = 30 * 24 * 60 * 60
+
+export const secretKey = 'pgactgwdf9ap6uojb7r5lu8y'
 
 export const apiNeededToAuth = [
   '/api/user/add',
