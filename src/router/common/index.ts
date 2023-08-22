@@ -1,6 +1,6 @@
 import { join } from 'path'
 import { constants } from 'fs'
-import { readFile, writeFile, access } from 'fs/promises'
+import { access, readFile, writeFile } from 'fs/promises'
 
 import router from '../instance'
 import { apiPrefix } from '../../config'

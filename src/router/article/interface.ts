@@ -1,4 +1,5 @@
 import type { WithPaginationReq } from '../interface'
+
 export type GetArticleFilterType = 'hotest' | 'newest'
 
 export interface GetArticleReq {

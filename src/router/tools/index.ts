@@ -1,4 +1,4 @@
-import type { WithPaginationReq, RequestBody } from '../interface'
+import type { RequestBody, WithPaginationReq } from '../interface'
 
 import { Prisma } from '@prisma/client'
 

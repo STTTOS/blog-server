@@ -16,9 +16,10 @@ const eBookApi = combinePath(apiPrefix)('/ebook')
 
 router.post(eBookApi('/add'), async (ctx) => {
   const { cookie = '' } = ctx.request.header
-  const { name, category, words, eBookUrl }: Prisma.EBookCreateInput = ctx.request.body
+  const { name, category, words, eBookUrl }: Prisma.EBookCreateInput =
+    ctx.request.body
 
-  const { id: userId } = await parseUserInfoByCookie(cookie) || {}
+  const { id: userId } = (await parseUserInfoByCookie(cookie)) || {}
 
   await eBook.create({ data: { name, category, eBookUrl, words, userId } })
   response.success(ctx)
@@ -26,11 +27,17 @@ router.post(eBookApi('/add'), async (ctx) => {
 
 router.post(eBookApi('/update'), async (ctx) => {
   const { cookie = '' } = ctx.request.header
-  const { name, category, words, eBookUrl, id }: Prisma.EBookUncheckedCreateInput = ctx.request.body
+  const {
+    name,
+    category,
+    words,
+    eBookUrl,
+    id
+  }: Prisma.EBookUncheckedCreateInput = ctx.request.body
 
   if (!id) throw new Error('id 不能为空')
 
-  const { id: userId } = await parseUserInfoByCookie(cookie) || {}
+  const { id: userId } = (await parseUserInfoByCookie(cookie)) || {}
   try {
     await eBook.update({
       data: { name, category, eBookUrl, words, userId },
@@ -56,7 +63,8 @@ router.post(eBookApi('/delete'), async (ctx) => {
 })
 
 router.post(eBookApi('/list'), async (ctx) => {
-  const { name, category, pageSize, current }: EBookLookUpList = ctx.request.body
+  const { name, category, pageSize, current }: EBookLookUpList =
+    ctx.request.body
 
   if (!current || !pageSize) throw new Error('分页参数不正确')
 

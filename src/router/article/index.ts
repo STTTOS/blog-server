@@ -7,17 +7,17 @@ import { Prisma } from '@prisma/client'
 
 import router from '../instance'
 import prisma from '../../models'
-import { article, tag } from '../../models'
+import { tag, article } from '../../models'
 import response from '../../utils/response'
 import { withList } from '../../utils/response'
+import { parseUserInfoByCookie } from '../user'
 import combinePath from '../../utils/combinePath'
 import {
   apiPrefix,
   timeFormat,
-  timeFormatWithoutSeconds,
-  wordsToMinuteBaseNumber
+  wordsToMinuteBaseNumber,
+  timeFormatWithoutSeconds
 } from '../../config'
-import { parseUserInfoByCookie } from '../user'
 
 const articleApi = combinePath(apiPrefix)('/article')
 
