@@ -42,6 +42,8 @@ model User {
   TagsOnArticles TagsOnArticles[]
 
   eBooks EBook[]
+
+  comments Comment[]
 }
 
 // 文章
@@ -70,6 +72,7 @@ model Article {
   author        User?            @relation(fields: [authorId], references: [id])
   coAuthorIds   String?
   tags          TagsOnArticles[]
+  comments      Comment[]
 
   @@unique([authorId, title])
 }
@@ -139,4 +142,24 @@ enum EBookCategory {
   biography
   //未分类 
   other
+}
+
+// 新增评论功能
+model Comment {
+  id        Int      @id @default(autoincrement())
+  content   String   @db.VarChar(1000)
+  createdAt DateTime @default(now())
+
+  // 关联用户
+  author   User @relation(fields: [authorId], references: [id])
+  authorId Int
+  // targetAuthorId Int?
+
+  // 关联文章
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  articleId Int
+
+  parentCommentId Int?
+  parentComment   Comment?  @relation("replies", fields: [parentCommentId], references: [id])
+  replies         Comment[] @relation("replies")
 }
