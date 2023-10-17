@@ -54,8 +54,15 @@ router.post(articleApi('/add'), async (ctx) => {
 
 router.post(articleApi('/delete'), async (ctx) => {
   const { id }: Partial<Identity> = ctx.request.body
-
+  const { cookie } = ctx.request.header
   if (!id) throw new Error('参数不正确')
+
+  const user = await parseUserInfoByCookie(cookie)
+  const thisOne = await article.findUnique({ where: { id } })
+  if (user?.id !== thisOne?.authorId) {
+    response.success(ctx, null, '无操作权限', 403)
+    return
+  }
 
   try {
     await article.delete({ where: { id: Number(id) } })
@@ -67,7 +74,8 @@ router.post(articleApi('/delete'), async (ctx) => {
 
 router.post(articleApi('/update'), async (ctx) => {
   const {
-    body: { id, tagIds, content, createdAt, updatedAt, coAuthorIds, ...data }
+    body: { id, tagIds, content, createdAt, updatedAt, coAuthorIds, ...data },
+    header: { cookie }
   } = ctx.request
 
   if (!id) throw new Error('参数不正确')
@@ -77,6 +85,12 @@ router.post(articleApi('/update'), async (ctx) => {
   const readingTime = Math.ceil(length / wordsToMinuteBaseNumber)
 
   const thisOne = await article.findUnique({ where: { id } })
+  const user = await parseUserInfoByCookie(cookie)
+  if (user?.id !== thisOne?.authorId) {
+    response.success(ctx, null, '无操作权限', 403)
+    return
+  }
+
   await article.update({
     where: {
       id
@@ -113,6 +127,8 @@ router.post(articleApi('/list'), async (ctx) => {
     current: skip,
     pageSize: take
   }: GetArticleByPaginationReq = ctx.request.body
+  const { cookie } = ctx.request.header
+  const user = await parseUserInfoByCookie(cookie)
 
   if (!skip || !take) throw new Error('分页参数不正确')
 
@@ -120,7 +136,12 @@ router.post(articleApi('/list'), async (ctx) => {
   const where: Prisma.ArticleWhereInput = {
     title: {
       contains: title
-    }
+    },
+    OR: [
+      // 可见的文章
+      { private: false },
+      { authorId: user?.id }
+    ]
   }
 
   if (tagIds && tagIds.length > 0) {
@@ -189,9 +210,11 @@ router.post(articleApi('/list'), async (ctx) => {
 
 router.post(articleApi('/detail'), async (ctx) => {
   const { id }: Identity = ctx.request.body
+  const { cookie } = ctx.request.header
 
   if (!id) throw new Error('参数不正确')
 
+  const user = await parseUserInfoByCookie(cookie)
   const data = await article.findUnique({
     include: {
       tags: {
@@ -204,6 +227,10 @@ router.post(articleApi('/detail'), async (ctx) => {
   })
   if (!data) {
     response.success(ctx, null)
+    return
+  }
+  if (data.private && data.authorId !== user?.id) {
+    response.success(ctx, null, '资源不存在或者无权限访问', 404)
     return
   }
   const { tags, createdAt, ...rest } = data
@@ -232,6 +259,9 @@ router.post(articleApi('/similar'), async (ctx) => {
             in: tagIds
           }
         }
+      },
+      private: {
+        not: true
       }
     },
     orderBy: {
@@ -279,8 +309,21 @@ router.post(articleApi('/count'), async (ctx) => {
 
 router.post(articleApi('/clientList'), async (ctx) => {
   const { authorId, tagId } = ctx.request.body
+  const { cookie } = ctx.request.header
+  const user = await parseUserInfoByCookie(cookie)
 
-  const where: Prisma.ArticleWhereInput = {}
+  const where: Prisma.ArticleWhereInput = {
+    OR: [
+      // 可见的文章
+      { private: false },
+      // 当前用户的文章
+      {
+        authorId: {
+          equals: user?.id
+        }
+      }
+    ]
+  }
 
   if (authorId) {
     where.authorId = authorId

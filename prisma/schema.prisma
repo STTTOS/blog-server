@@ -71,6 +71,8 @@ model Article {
   authorId      Int?
   author        User?            @relation(fields: [authorId], references: [id])
   coAuthorIds   String?
+  // feat: 20230-10-17, 新增仅自己可见字段, 默认为false
+  private       Boolean          @default(false)
   tags          TagsOnArticles[]
   comments      Comment[]
 

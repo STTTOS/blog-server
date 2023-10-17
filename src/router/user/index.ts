@@ -62,11 +62,11 @@ router.post(userApi('/info'), async (ctx) => {
   const { cookie = '' } = ctx.request.header
 
   const user = await parseUserInfoByCookie(cookie)
-  if (!user) {
-    response.error(ctx, 403, '未登录')
-  } else {
-    response.success(ctx, user)
-  }
+  // if (!user) {
+  //   response.error(ctx, 403, '未登录')
+  // } else {
+  response.success(ctx, user)
+  // }
 })
 
 router.post(userApi('/add'), async (ctx) => {
