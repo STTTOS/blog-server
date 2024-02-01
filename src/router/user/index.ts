@@ -4,7 +4,7 @@ import type { UpdateUserReq, GetUserByPaginationReq } from './interface'
 import moment from 'moment'
 import Cookie from 'cookie'
 import { Prisma } from '@prisma/client'
-import { map, prop, reduce, propOr, compose } from 'ramda'
+import { map, prop, omit, reduce, compose } from 'ramda'
 
 import router from '../instance'
 import { user } from '../../models'
@@ -55,7 +55,8 @@ export async function parseUserInfoByCookie(input?: string) {
 
   if (!id) return null
 
-  return await user.findUnique({ where: { id: Number(id) } })
+  const u = await user.findUnique({ where: { id: Number(id) } })
+  return u && omit(['password'], u)
 }
 
 router.post(userApi('/info'), async (ctx) => {
@@ -172,7 +173,7 @@ router.post(userApi('/recommend'), async (ctx) => {
       }
     }
   })
-  const newList = list.map(({ articles, ...rest }) => ({
+  const newList = list.map(({ articles, password, ...rest }) => ({
     totalViewCount: sumViewCounts(articles),
     ...rest
   }))
@@ -204,7 +205,13 @@ router.post(userApi('/detail'), async (ctx) => {
 
 router.post(userApi('/all'), async (ctx) => {
   const list = await user.findMany()
-  response.success(ctx, withList(list, list.length))
+  response.success(
+    ctx,
+    withList(
+      list.map(({ password, ...rest }) => rest),
+      list.length
+    )
+  )
 })
 
 export const sum = (a: number, b: number) => a + b
@@ -234,7 +241,7 @@ router.post(userApi('/card'), async (ctx) => {
     response.success(ctx, null)
     return
   }
-  const { articles, ...rest } = data
+  const { articles, password, ...rest } = data
   response.success(ctx, {
     totalViewCount: sumViewCounts(articles),
     ...rest
