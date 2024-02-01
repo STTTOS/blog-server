@@ -15,7 +15,8 @@
     "db:generate": "npx prisma generate",
     "db:sync": "npm run db:migrate--dev && npm run db:generate",
     "db:watch": "nodemon -w prisma/schema.prisma --exec \"npm run db:sync\"",
-    "precommit": "lint-staged"
+    "precommit": "lint-staged",
+    "publish": "yarn eslint:ci && yarn build && scp -r ./dist/* root@www.wishufree.com:/root/server/dist"
   },
   "author": "三分",
   "license": "ISC",

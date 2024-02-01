@@ -34,6 +34,11 @@ router.post(userApi('/signin'), async (ctx) => {
     }
 
     const token = encrypt(`${u.id}`)
+    ctx.cookies.set('token', token, {
+      httpOnly: true,
+      domain: 'wishufree.com',
+      expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    })
     response.success(ctx, { token }, '登录成功')
     return
   }
@@ -44,6 +49,11 @@ router.post(userApi('/signin'), async (ctx) => {
   })
   const token = encrypt(`${userInfo.id}`)
   response.success(ctx, { token }, '注册成功')
+})
+
+router.post(userApi('/logout'), async (ctx) => {
+  ctx.cookies.set('token', null, { domain: 'wishufree.com' })
+  response.success(ctx)
 })
 
 // 从cookie中查询用户
