@@ -199,7 +199,7 @@ router.post(articleApi('/list'), async (ctx) => {
     orderBy
   })
 
-  const newList = list.map(({ author, tags, createdAt, ...rest }) => ({
+  const newList = list.map(({ author, tags, content, createdAt, ...rest }) => ({
     ...rest,
     authorName: author?.name,
     createdAt: moment(createdAt).format(timeFormat),
@@ -269,7 +269,13 @@ router.post(articleApi('/similar'), async (ctx) => {
     },
     take: 5
   })
-  response.success(ctx, withList(list, list.length))
+  response.success(
+    ctx,
+    withList(
+      list.map(({ content, ...rest }) => rest),
+      list.length
+    )
+  )
 })
 
 // 埋点统计
@@ -346,7 +352,7 @@ router.post(articleApi('/clientList'), async (ctx) => {
     },
     where
   })
-  const newList = list.map(({ createdAt, author, ...rest }) => ({
+  const newList = list.map(({ createdAt, content, author, ...rest }) => ({
     ...rest,
     avatar: author?.avatar,
     authorName: author?.name,
